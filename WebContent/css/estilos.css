@@ -1,0 +1,81 @@
+
+.speakerBoton {
+	position: relative;
+	display: talbe-cell;
+}
+
+.speakerBoton input {
+   width: 100px;
+   height: 100px;
+   margin-left: 35px;
+   margin-right: 35px;
+}
+
+.movilBoton {
+   position: relative;
+   display: table-cell;
+}
+
+.movilBoton input {
+   position: relative;
+   width: 150px;
+   height: 100px;
+   margin-left: 10px;
+   margin-right: 10px;
+   z-index: 2;
+}
+
+.movilBoton img {
+   position: absolute;
+   width: 75px;
+   height: 75px;
+   top: 15;
+   left: 60;
+   z-index: 1;
+}
+
+/* .movilBoton p {  */
+/*    position: absolute;  */
+/*    top: 28;  */
+/*    left: 70;  */
+/*    width: 100%;  */
+/* } */
+
+
+
+
+
+
+
+
+.buttons {
+	width: 100px;
+	height: 100px;
+	color: black;
+	background-color: #497BBE;
+	border-radius: 10%;
+}
+
+.selectedButtons {
+	width: 100px;
+	height: 100px;
+	color: black;
+	background-color: #7B49BE;
+	border-radius: 10%;
+}
+
+.divs {
+	text-align: 'center';
+	margin: 0 auto;
+	left: 50%
+}
+
+.screenOrientation {
+	width: 400px;
+	height: 400px;
+}
+
+.bodyStyle {
+	margin-top: 12%;
+	margin-left: 18%;;
+}

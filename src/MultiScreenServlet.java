@@ -12,8 +12,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 
-@WebServlet("/")
+
+@WebServlet("/multiscreen")
 public class MultiScreenServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 	private static List<StreamGroup> groups;
@@ -26,6 +28,12 @@ public class MultiScreenServlet extends HttpServlet {
 
 	public void init(ServletConfig config) throws ServletException {
 		groups = new ArrayList<StreamGroup>();
+	}
+	
+	public void destroy() {
+		if(StreamGroup.p!=null && StreamGroup.p.isAlive()) {
+			StreamGroup.p.destroy();
+		}
 	}
 
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -71,7 +79,7 @@ public class MultiScreenServlet extends HttpServlet {
 		out.println("<head>");
 		out.println("  	<title>MultiScreenProject</title>");
 		out.println("  	<meta charset='ISO-8859-15'>");
-		out.println("  	<link href='./css/estilos.css' rel='stylesheet' type='text/css' >");
+		out.println("  	<link href='css/estilos.css' rel='stylesheet' type='text/css' >");
 		out.println("</head>");
 
 		out.println("<body background='./images/background.jpeg' class='bodyStyle'>");
@@ -82,12 +90,14 @@ public class MultiScreenServlet extends HttpServlet {
 		String matrix = request.getParameter("matrix");
 		String rows = request.getParameter("rows");
 		String columns = request.getParameter("columns");
+		String audioStream = request.getParameter("audiostream");
+		String audioOptions = request.getParameter("audioOptions");
 		String selectedPosition = request.getParameter("selectedPosition");
 		String group = request.getParameter("group");
 		if (create != null) {
 			AskSizeGroupStream(out, create);
 		} else if (matrix != null) {
-			CreateGroupStream(out, matrix, rows, columns, request);
+			CreateGroupStream(out, matrix, rows, columns, audioStream, audioOptions, request);
 			ShowDisplayMatrix(out, matrix);
 		} else if (selectedPosition != null) {
 			VideoPage(out, group, selectedPosition, request);
@@ -109,22 +119,35 @@ public class MultiScreenServlet extends HttpServlet {
 		out.println("		Seleccionar el tamaño de la matriz de pantallas");
 		out.println("		<div>");
 
-		out.println("		Número de columnas<input type='number' name='rows' min='1'></div><div>");
-		out.println("		Número de filas<input type='number' name='columns' min='2'></div><div>");
+		out.println("		Número de columnas<input type='number' name='columns' min='1'></div><div>");
+		out.println("		Número de filas<input type='number' name='rows' min='2'></div><div>");
 		out.println("		</div>");
+		out.println("       <div>");
+		out.println("            Stereo Split<input type='radio' name='audioOptions' value='split-audio'>");
+		out.println("            Video Mute<input type='radio' name='audioOptions' value='mute-video'>");
+		out.println("       </div>");
+		out.println("       <div>");
+		out.println("       Flujo independiente para audio:");
+		out.println("       <select name='audiostream'>");
+		out.println("          <option value='disabled'>Disabled</option>");
+		out.println("          <option value='mono'>Mono</option>");
+		out.println("          <option value='stereo'>Stereo</option>");
+		out.println("       </select>");
+		out.println("       </div>");
 		out.println("<div>" + "<button type='submit' name='matrix' class='buttons' value='" + path + "'>" + "Siguiente"
 				+ "</button>");
 		out.println("<input type='hidden' class='buttons' id='group' name='screenNumber' value='" + path + "'>");
 	}
 
-	protected void CreateGroupStream(PrintWriter out, String path, String rows, String columns, HttpServletRequest request) {
+	protected void CreateGroupStream(PrintWriter out, String path, String rows, String columns, String audioStream, String audioOptions, HttpServletRequest request) {
 		int y = Integer.parseInt(rows);
 		int x = Integer.parseInt(columns);
 		//String path_script = request.getSession().getServletContext().getRealPath("SCRIPT");
 		//String path_video = request.getSession().getServletContext().getRealPath(videosPath);
-		StreamGroup sGroup = new StreamGroup(path, y, x);
+		StreamGroup sGroup = new StreamGroup(path, y, x, audioStream, audioOptions);
 		groups.add(sGroup);
-		ProcessBuilder pb = new ProcessBuilder(scriptAbsolutePath+"/videoSpliter.sh", "-i", videoAbsolutePath+"/"+path, "-r", rows, "-c", columns, "--ffmpeg-path", ffmpegAbsolutePath, "--ffserver-path", ffserverAbsolutePath);
+		
+		ProcessBuilder pb = new ProcessBuilder(scriptAbsolutePath+"/videoSpliter.sh", "-i", videoAbsolutePath+"/"+path, "-r", rows, "-c", columns, "--ffmpeg-path", ffmpegAbsolutePath, "--ffserver-path", ffserverAbsolutePath, "--audio-stream", audioStream, "--"+audioOptions);
 
 		// Map<String, String> env = pb.environment();
 		// env.put("VAR1", "myValue");
@@ -139,7 +162,7 @@ public class MultiScreenServlet extends HttpServlet {
 			
 			if(StreamGroup.p==null || ! StreamGroup.p.isAlive()) {
 				StreamGroup.p = pb.start();
-				System.out.println("Ejecuto");
+				System.out.println(pb.command());
 			}
 			
 			//DEBUG MODE
@@ -157,16 +180,26 @@ public class MultiScreenServlet extends HttpServlet {
 		}
 		else if(selectedPosition.equals("stopStream")) {
 			StreamGroup.p.destroy();
+			groups.clear();
 			Thanks(out, path);
 			return;
 		}
-		String[] temp = selectedPosition.split("x");
-		int x = Integer.parseInt(temp[0]);
-		int y = Integer.parseInt(temp[1]);
-		out.println("<div>Selected position  " + x + " : " + y + "</div>");
-		temp = path.split("\\.");
-		String videoLink = ffServerUrl + temp[0] + "_" + x + "_" + y + "." + "webm";//temp[1];
-		out.println("<div><video width='1280' height='720' controls autoplay> <source src='" + videoLink + "'"
+		String[] temp;
+		String videoLink;
+		
+		if(selectedPosition.contains("x")) {
+			temp = selectedPosition.split("x");
+			int x = Integer.parseInt(temp[0]);
+			int y = Integer.parseInt(temp[1]);
+			temp = path.split("\\.");
+			out.println("<div>Selected position  " + x + " : " + y + "</div>");
+			videoLink = ffServerUrl + temp[0] + "_" + x + "_" + y + "." + "webm";//temp[1];
+		}
+		else {
+			temp = path.split("\\.");
+			videoLink = ffServerUrl + temp[0] + "_" +selectedPosition+ "." + "webm";//temp[1];
+		}
+		out.println("<div><video id='video' width='1280' height='720' controls autoplay> <source src='" + videoLink + "'"
 				+ " type='video/mp4'>Your browser does not support HTML5 video</video></div>");
 	}
 
@@ -205,13 +238,35 @@ public class MultiScreenServlet extends HttpServlet {
 		}
 		StreamGroup sGroup = groups.get(indx);
 		for (int i = 0; i < sGroup.rows; i++) {
-			out.println("<div><tr>");
+			out.println("<div>");
 			for (int j = 0; j < sGroup.columns; j++) {
 				String aux = (i + 1) + "x" + (j + 1);
-				out.println("<td><button type='submit' name='selectedPosition' class='buttons' value='" + aux + "'> "
-						+ aux + "</td>");
+				out.println("<div class='movilBoton'>");
+				out.println("<input type='image' src='./images/movil.png' alt='Submit' name='selectedPosition' class='buttons' value='" + aux + "' />");
+				if(sGroup.audioOptions.equals("split-audio")) {
+					if(j==0)
+						out.println("<img src='./images/speaker_L.png' />");
+					else if(j==sGroup.columns-1)
+						out.println("<img src='./images/speaker_R.png' />");
+					else
+						out.println("<img src='./images/speaker_mute.png' />");
+				}
+				else if(sGroup.audioOptions.equals("mute-video")) {
+					out.println("<img src='./images/speaker_mute.png' />");
+				}
+				else {
+					out.println("<img src='./images/speaker.png' />");
+				}
+				//out.println("<p>"+ aux +"</p>");
+				out.println("</div>");
 			}
-			out.println("</tr></div>");
+			out.println("</div>");
+		}
+		if(sGroup.audioStream.equals("mono"))
+			out.println("<div class='speakerBoton'><input type='image' src='./images/speaker.png' alt='Submit' name='selectedPosition' class='buttons' value='MONO'></div>");
+		if(sGroup.audioStream.equals("stereo")) {
+			out.println("<div class='speakerBoton'><input type='image' src='./images/speaker_L.png' alt='Submit' name='selectedPosition' class='buttons' value='L'>");
+			out.println("<input type='image' src='./images/speaker_R.png' alt='Submit' name='selectedPosition' class='buttons' value='R'></div>");
 		}
 		out.println("<td><button type='submit' name='selectedPosition' class='buttons' value='none'>none</td>");
 		out.println("<td><button type='submit' name='selectedPosition' class='buttons' value='stopStream'>Stop Stream</td>");
@@ -237,7 +292,7 @@ public class MultiScreenServlet extends HttpServlet {
 			out.println("  	<h2>MultiScreen</h2>");
 			out.println("	<form id='formulario' name='formulario' method='get' class='formStyle'>");
 			out.println("		<div>");
-			out.println("		En este momento no existe ninguna peticiï¿½n de reproducciï¿½n multiScreen.");
+			out.println("		En este momento no existe ninguna petición de reproducción multiScreen.");
 			out.println("		<button type='submit' name='return' class='buttons'>Volver al principio</button>");
 
 			out.println("		</div>");
@@ -255,13 +310,20 @@ public class MultiScreenServlet extends HttpServlet {
 	public static class StreamGroup {
 		public int rows;
 		public int columns;
+		public String audioStream;
+		public String audioOptions;
 		public String path;
 		public static Process p;
 
-		public StreamGroup(String path, int rows, int columns) {
+		public StreamGroup(String path, int rows, int columns, String audioStream, String audioOptions) {
 			this.path = path;
 			this.rows = rows;
 			this.columns = columns;
+			this.audioStream = audioStream;
+			if(audioOptions==null)
+				this.audioOptions = "";
+			else
+				this.audioOptions = audioOptions;
 		}
 	}
 }
