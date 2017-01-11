@@ -5,7 +5,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 
 import javax.servlet.ServletConfig;
@@ -29,6 +31,10 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 	private static final String ffserverAbsolutePath = "/home/bruno/ffmpeg/ffserver";
 	private static final String ffServerUrl = "http://localhost:8080/";
 
+	private Hashtable<Integer, BigDecimal> timestampHt = new Hashtable<>();
+	private int screens=0;
+	private List<String> activeUsers=new ArrayList<>();
+	
 	public void init(ServletConfig config) throws ServletException {
 		groups = new ArrayList<StreamGroup>();
 	}
@@ -42,40 +48,47 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		PrintWriter out = response.getWriter();
-
-		out.println("<html>");
-		out.println("<!DOCTYPE html>");
-		out.println("<html lang='en'>");
-		out.println("<head>");
-		out.println("  	<title>MultiScreenProject</title>");
-		out.println("  	<meta charset='ISO-8859-15'>");
-		out.println("  	<link href='./css/estilos.css' rel='stylesheet' type='text/css' >");
-		out.println("</head>");
-
-		out.println("<body background='./images/background.jpeg' class='bodyStyle'>");
-		out.println("   <div id='content'>");
-		out.println("  	<h2>MultiScreen</h2>");
-		out.println("	<form id='formulario' name='formulario' method='post'>");
-		out.println("		Seleccione el grupo de streams o cree uno nuevo");
-		out.println("		<div>");
-		out.println("		<button type='submit' name='group' class='buttons' value='add'>Add new group</button>");
-		for (int i = 0; i < groups.size(); i++) {
-			String value = groups.get(i).path;
-			String value_show = value;
-			if(value.length()>15) {
-				value_show = value.substring(0, 14)+"...";
-			}
-			out.println("		<button type='submit' name='group' class='buttons' value='" + value + "'>" + value_show
-					+ "</button>");
+		boolean rest = false;
+		if (!request.getParameterMap().isEmpty()) {
+			rest = true;
 		}
-
-		out.println("			<input type='hidden' id='page' name='page' value='1'>");
-		out.println("		</div>");
-		out.println("");
-		out.println("</form>");
-		out.println("</div>");
-		out.println("</body>");
-		out.println("</html>");
+		if (rest) {
+			restService(request, response);
+		} else {
+			out.println("<html>");
+			out.println("<!DOCTYPE html>");
+			out.println("<html lang='en'>");
+			out.println("<head>");
+			out.println("  	<title>MultiScreenProject</title>");
+			out.println("  	<meta charset='ISO-8859-15'>");
+			out.println("  	<link href='./css/estilos.css' rel='stylesheet' type='text/css' >");
+			out.println("</head>");
+	
+			out.println("<body background='./images/background.jpeg' class='bodyStyle'>");
+			out.println("   <div id='content'>");
+			out.println("  	<h2>MultiScreen</h2>");
+			out.println("	<form id='formulario' name='formulario' method='post'>");
+			out.println("		Seleccione el grupo de streams o cree uno nuevo");
+			out.println("		<div>");
+			out.println("		<button type='submit' name='group' class='buttons' value='add'>Add new group</button>");
+			for (int i = 0; i < groups.size(); i++) {
+				String value = groups.get(i).path;
+				String value_show = value;
+				if(value.length()>15) {
+					value_show = value.substring(0, 14)+"...";
+				}
+				out.println("		<button type='submit' name='group' class='buttons' value='" + value + "'>" + value_show
+						+ "</button>");
+			}
+	
+			out.println("			<input type='hidden' id='page' name='page' value='1'>");
+			out.println("		</div>");
+			out.println("");
+			out.println("</form>");
+			out.println("</div>");
+			out.println("</body>");
+			out.println("</html>");
+		}
 	}
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -160,6 +173,8 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 			groups.add(sGroup);
 		}
 		
+		screens = x*y;
+		
 		ProcessBuilder pb = new ProcessBuilder(scriptAbsolutePath+"/videoSpliter.sh", "-i", videoAbsolutePath+"/"+path, "-r", rows, "-c", columns, "--ffmpeg-path", ffmpegAbsolutePath, "--ffserver-path", ffserverAbsolutePath, "--audio-stream", audioStream, "--"+audioOptions);
 
 		// Map<String, String> env = pb.environment();
@@ -214,6 +229,8 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 		}
 		out.println("<div><video id='video' controls autoplay> <source src='" + videoLink + "'"
 				+ " type='video/mp4'>Your browser does not support HTML5 video</video></div>");
+		out.println("    <script type='text/javascript' src='./js/Servlet.js'></script>");
+
 	}
 
 	protected void Thanks(PrintWriter out, String path) {
@@ -329,8 +346,57 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 		} catch (IOException e) {
 			System.out.println("No existen flujos!");
 		}
-
 	}
+		
+		protected void restService(HttpServletRequest request, HttpServletResponse response) {
+			try {
+//				String pos = request.getParameter("pos").toString();
+				String timeString = request.getParameter("timestamp").toString();
+				BigDecimal timestamp= new BigDecimal(timeString);
+				activeUsers.add("1");
+				int id= activeUsers.size();
+				timestampHt.put(id, timestamp);
+				boolean repeat=true;
+				String restResponse="";
+				while(repeat){
+					try {
+						Thread.sleep(100);//ms
+						if(activeUsers.size()==screens){
+							restResponse=checkTimeout(id);
+							Thread.sleep(210);
+							repeat=false;
+						}
+					} catch (Exception e) {
+						System.out.println("excepcion de sincronizacion");
+					}
+				}
+				activeUsers.remove("1");
+				
+				PrintWriter out = response.getWriter();
+				out.println(restResponse);
+		
+			
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		private String checkTimeout(int id){
+			
+			ArrayList<BigDecimal> auxList= new ArrayList<>();
+			for(int i=0;i<timestampHt.size();i++){
+				auxList.add(timestampHt.get(i+1));
+			}
+			BigDecimal lower=auxList.get(0);
+			for(BigDecimal i: auxList) {
+				if(i.compareTo(lower) == -1){
+					lower = i;
+				}
+			}
+			
+			return timestampHt.get(id).subtract(lower).toString();
+		}
 
 	public static class StreamGroup {
 		public int rows;
