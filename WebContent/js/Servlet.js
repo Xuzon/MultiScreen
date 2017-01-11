@@ -1,10 +1,14 @@
 
-    send();
+	setTimeout(function(){send(); }, 10000);
+    //send();
 
     //Funcion que para el video durante x segundos.
     function pause(seg) {
-        document.getElementById('video').pause();
-    setTimeout(function(){document.getElementById('video').play(); }, seg);
+    	if(seg!=0) {
+    		console.log("Voy a parar: "+seg);
+	        document.getElementById('video').pause();
+	        setTimeout(function(){document.getElementById('video').play(); }, seg*1000);
+    	}
     }
 
      function change(rate) {
@@ -15,18 +19,22 @@
     function send() {                           
         var url =  document.URL+"?timestamp=";
         setInterval(function () { 
-            httpGet(url+document.getElementById('video').currentTime); 
+        	console.log("Hago petición");
+        	console.log("Video Time: "+document.getElementById('video').currentTime);
+            httpGet(url+document.getElementById('video').currentTime);
         }, 2000);
     }
 
     //Función que envia peticiones y espera la respuesta y luego manda para el video durante x tiempo.
     function httpGet(url){
         var request = new XMLHttpRequest();
-        request.open("GET",url,false);
-        request.send();
-        request.onreadystatechange = function() { 
-        if (request.readyState == 4 && request.status == 200)
-        	document.write("request.responseText");
-            pause(parseInt(request.responseText));
+        request.onreadystatechange = function() {
+	        if (request.readyState == 4 && request.status == 200) {
+	            console.log("Hecha petición: "+request.responseText);
+	            pause(parseFloat(request.responseText));
+	        }
         }
-    }   
+        request.open("GET",url,true);
+        request.send();
+
+    }

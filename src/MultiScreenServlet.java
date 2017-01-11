@@ -29,7 +29,7 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 	private static final String scriptAbsolutePath = "/home/bruno/SMM/SCRIPT";
 	private static final String ffmpegAbsolutePath = "/home/bruno/ffmpeg/ffmpeg";
 	private static final String ffserverAbsolutePath = "/home/bruno/ffmpeg/ffserver";
-	private static final String ffServerUrl = "http://localhost:8080/";
+	private static final String ffServerUrl = "http://192.168.0.100:8080/";
 
 	private Hashtable<Integer, BigDecimal> timestampHt = new Hashtable<>();
 	private int screens=0;
@@ -172,9 +172,7 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 			StreamGroup sGroup = new StreamGroup(path, y, x, audioStream, audioOptions);
 			groups.add(sGroup);
 		}
-		
-		screens = x*y;
-		
+				
 		ProcessBuilder pb = new ProcessBuilder(scriptAbsolutePath+"/videoSpliter.sh", "-i", videoAbsolutePath+"/"+path, "-r", rows, "-c", columns, "--ffmpeg-path", ffmpegAbsolutePath, "--ffserver-path", ffserverAbsolutePath, "--audio-stream", audioStream, "--"+audioOptions);
 
 		// Map<String, String> env = pb.environment();
@@ -229,9 +227,9 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 			videoLink = ffServerUrl + temp[0] + "_" +selectedPosition+ "." + "webm";//temp[1];
 		}
 		screens++;
-		out.println("<div><video id='video' controls autoplay> <source src='" + videoLink + "'"
+		out.println("<div><video id='video' controls autoplay> <source id='videosrc' src='" + videoLink + "'"
 				+ " type='video/mp4'>Your browser does not support HTML5 video</video></div>");
-		out.println("    <script type='text/javascript' src='./js/Servlet.js'></script>");
+		out.println("<script type='text/javascript' src='./js/Servlet.js'></script>");
 
 	}
 
@@ -352,20 +350,23 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 		
 		protected void restService(HttpServletRequest request, HttpServletResponse response) {
 			try {
-//				String pos = request.getParameter("pos").toString();
+				//String pos = request.getParameter("pos").toString();
 				String timeString = request.getParameter("timestamp").toString();
 				BigDecimal timestamp= new BigDecimal(timeString);
+				System.out.println("Recibo petición rest");
 				activeUsers.add("1");
 				int id= activeUsers.size();
 				timestampHt.put(id, timestamp);
 				boolean repeat=true;
 				String restResponse="";
+				System.out.println("Num pantallas: "+screens);
+				System.out.println("Usuarios: "+activeUsers.size());
 				while(repeat){
 					try {
-						Thread.sleep(100);//ms
+						Thread.sleep(10);//ms
 						if(activeUsers.size()==screens){
 							restResponse=checkTimeout(id);
-							Thread.sleep(210);
+							Thread.sleep(21);
 							repeat=false;
 						}
 					} catch (Exception e) {
@@ -373,12 +374,12 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 					}
 				}
 				activeUsers.remove("1");
-				
+				System.out.println("Debe el "+ id +" parar: "+restResponse);
 				PrintWriter out = response.getWriter();
 				out.println(restResponse);
 		
 			
-			} catch (IOException e) {
+			}catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
