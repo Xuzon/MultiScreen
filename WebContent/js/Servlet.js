@@ -22,7 +22,7 @@
     //Función que envia peticiones y espera la respuesta y luego manda para el video durante x tiempo.
     function httpGet(url){
         var request = new XMLHttpRequest();
-        request.open("GET",url,true);
+        request.open("GET",url,false);
         request.send();
         request.onreadystatechange = function() { 
         if (request.readyState == 4 && request.status == 200)

@@ -210,6 +210,7 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 			StreamGroup.p.destroy();
 			groups.clear();
 			Thanks(out, path);
+			screens=0;
 			return;
 		}
 		String[] temp;
@@ -227,6 +228,7 @@ public class MultiScreenServlet extends HttpServlet implements Runnable {
 			temp = path.split("\\.");
 			videoLink = ffServerUrl + temp[0] + "_" +selectedPosition+ "." + "webm";//temp[1];
 		}
+		screens++;
 		out.println("<div><video id='video' controls autoplay> <source src='" + videoLink + "'"
 				+ " type='video/mp4'>Your browser does not support HTML5 video</video></div>");
 		out.println("    <script type='text/javascript' src='./js/Servlet.js'></script>");
